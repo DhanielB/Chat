@@ -10,7 +10,7 @@ class createMailer {
             } 
         });
         
-        transporter.sendMail({
+        await transporter.sendMail({
             to: 'dhanielbrandao2@gmail.com',
             from: 'Chat INC. <dhanielbra@outlook.com>',
             subject: 'Verificação de login',
