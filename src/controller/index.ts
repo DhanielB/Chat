@@ -1,11 +1,13 @@
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 import transporter from '@sendgrid/mail';
 import { Request, Response } from 'express';
 import createDatabase from '../models/createDatabase';
 
-transporter.setApiKey(
-  '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'
-);
+transporter.setApiKey(process.env.SENDGRID_API_KEY);
 
 const { Client, User, Message } = createDatabase;
 
@@ -202,6 +204,73 @@ class createController {
       status: 200,
       data: updatedUser,
       message: 'Code is valid',
+    });
+  }
+
+  async resetPasswordPage(req: Request, res: Response) {
+    const { API_KEY } = req.query;
+    var { code = '', password = '' } = req.params;
+
+    const passwordString = String(password);
+
+    password = crypto
+      .createHash('md5')
+      .update(passwordString)
+      .digest('hex');
+
+    if (!API_KEY || API_KEY != process.env.API_KEY) {
+      return res.status(403).json({
+        status: 403,
+        data: {},
+        error: 'Unauthorized',
+      });
+    }
+
+    if (password == '') {
+      return res.status(500).json({
+        status: 500,
+        data: {},
+        error: 'Bad Request',
+      });
+    }
+
+    const codeString: string = String(code);
+
+    const CodeExists = await User.findAndCountAll({
+      where: {
+        userId: codeString,
+      },
+    });
+
+    if (CodeExists.count == 0) {
+      return res.status(404).json({
+        status: 404,
+        error: 'Code is invalid',
+      });
+    }
+
+    const deletedUser = await User.findOne({
+      where: {
+        userId: codeString,
+      },
+    });
+
+    const deletedUserReadable = await JSON.parse(JSON.stringify(deletedUser));
+
+    deletedUserReadable.password = password;
+
+    await User.destroy({
+      where: {
+        userId: codeString,
+      },
+    });
+
+    const updatedUser = await User.create(deletedUserReadable);
+
+    return res.status(200).json({
+      status: 200,
+      data: updatedUser,
+      message: 'Reseted password with sucess',
     });
   }
 
